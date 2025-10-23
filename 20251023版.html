@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>菜单点餐系统</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #f3f4f6;
+        }
+        #root {
+            height: 100vh;
+        }
+        .icon {
+            width: 16px;
+            height: 16px;
+        }
+        .calendar-day {
+            width: 14.28%;
+            height: 40px;
+        }
+        .calendar-day.selected {
+            background-color: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // 自定义图标组件
+        const Plus = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        );
+
+        const Minus = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        );
+
+        const Copy = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        );
+
+        const Trash2 = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+        );
+
+        const PlusCircle = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+        );
+
+        const X = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        );
+
+        const Edit3 = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+        );
+
+        const BarChart3 = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12 20V10"></path>
+                <path d="M18 20V4"></path>
+                <path d="M6 20v-4"></path>
+            </svg>
+        );
+
+        const Calendar = ({ size = 16, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+                 strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        );
+
+        function MenuOrderApp() {
+            // 从本地存储加载数据
+            const loadFromStorage = (key, defaultValue) => {
+                try {
+                    const saved = localStorage.getItem(key);
+                    return saved ? JSON.parse(saved) : defaultValue;
+                } catch {
+                    return defaultValue;
+                }
+            };
+
+            // 初始菜单数据
+            const [menuItems, setMenuItems] = useState(() => 
+                loadFromStorage('menuItems', [
+                    { id: 1, name: '宫保鸡丁', price: 38, category: '热菜' },
+                    { id: 2, name: '鱼香肉丝', price: 32, category: '热菜' },
+                    { id: 3, name: '麻婆豆腐', price: 28, category: '热菜' },
+                    { id: 4, name: '西红柿炒鸡蛋', price: 22, category: '热菜' },
+                    { id: 5, name: '糖醋排骨', price: 48, category: '热菜' },
+                    { id: 6, name: '酸辣汤', price: 18, category: '汤品' },
+                    { id: 7, name: '蛋花汤', price: 15, category: '汤品' },
+                    { id: 8, name: '米饭', price: 3, category: '主食' },
+                    { id: 9, name: '馒头', price: 2, category: '主食' },
+                    { id: 10, name: '炒饭', price: 18, category: '主食' },
+                    { id: 11, name: '可乐', price: 5, category: '酒水饮料' },
+                    { id: 12, name: '雪碧', price: 5, category: '酒水饮料' },
+                    { id: 13, name: '啤酒', price: 8, category: '酒水饮料' },
+                ])
+            );
+
+            const [orders, setOrders] = useState(() => loadFromStorage('orders', {}));
+            const [copySuccess, setCopySuccess] = useState(false);
+            const [showAddForm, setShowAddForm] = useState(false);
+            const [showBatchAddForm, setShowBatchAddForm] = useState(false);
+            const [showEditMode, setShowEditMode] = useState(false);
+            const [showSummary, setShowSummary] = useState(false);
+            const [newItem, setNewItem] = useState({ name: '', price: '', category: '热菜' });
+            const [batchText, setBatchText] = useState('');
+            const [orderHistory, setOrderHistory] = useState(() => loadFromStorage('orderHistory', []));
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            const [viewMode, setViewMode] = useState('daily'); // daily, monthly, items
+
+            // 保存到本地存储
+            useEffect(() => {
+                localStorage.setItem('menuItems', JSON.stringify(menuItems));
+            }, [menuItems]);
+
+            useEffect(() => {
+                localStorage.setItem('orders', JSON.stringify(orders));
+            }, [orders]);
+
+            useEffect(() => {
+                localStorage.setItem('orderHistory', JSON.stringify(orderHistory));
+            }, [orderHistory]);
+
+            const updateQuantity = (itemId, change) => {
+                setOrders(prev => {
+                    const newQty = (prev[itemId] || 0) + change;
+                    if (newQty <= 0) {
+                        const { [itemId]: _, ...rest } = prev;
+                        return rest;
+                    }
+                    return { ...prev, [itemId]: newQty };
+                });
+            };
+
+            const addNewMenuItem = () => {
+                if (!newItem.name || !newItem.price) {
+                    alert('请填写菜名和价格');
+                    return;
+                }
+                
+                const newId = Math.max(...menuItems.map(i => i.id), 0) + 1;
+                setMenuItems([...menuItems, {
+                    id: newId,
+                    name: newItem.name,
+                    price: parseFloat(newItem.price),
+                    category: newItem.category
+                }]);
+                
+                setNewItem({ name: '', price: '', category: '热菜' });
+                setShowAddForm(false);
+            };
+
+            const batchAddMenuItems = () => {
+                if (!batchText.trim()) {
+                    alert('请输入菜品信息');
+                    return;
+                }
+
+                const lines = batchText.split('\n').filter(line => line.trim());
+                const newItems = [];
+                let maxId = Math.max(...menuItems.map(i => i.id), 0);
+
+                lines.forEach(line => {
+                    // 匹配菜名和价格，支持多种格式：菜名 价格、菜名 ￥价格、菜名:价格 等
+                    const match = line.match(/(.+?)\s+[￥]?(\d+(?:\.\d{1,2})?)$/);
+                    if (match) {
+                        const name = match[1].trim();
+                        const price = parseFloat(match[2]);
+                        if (name && !isNaN(price)) {
+                            newItems.push({
+                                id: ++maxId,
+                                name: name,
+                                price: price,
+                                category: '热菜' // 默认分类，可以手动修改
+                            });
+                        }
+                    }
+                });
+
+                if (newItems.length > 0) {
+                    setMenuItems([...menuItems, ...newItems]);
+                    setBatchText('');
+                    setShowBatchAddForm(false);
+                    alert(`成功添加 ${newItems.length} 个菜品`);
+                } else {
+                    alert('未找到有效的菜品信息，请检查格式（每行格式：菜名 价格）');
+                }
+            };
+
+            const deleteMenuItem = (itemId) => {
+                if (confirm('确定要删除这个菜品吗？')) {
+                    setMenuItems(menuItems.filter(item => item.id !== itemId));
+                    // 同时删除该菜品的订单
+                    setOrders(prev => {
+                        const { [itemId]: _, ...rest } = prev;
+                        return rest;
+                    });
+                }
+            };
+
+            const generateOrderText = () => {
+                const orderedItems = Object.entries(orders)
+                    .map(([itemId, qty]) => {
+                        const item = menuItems.find(i => i.id === parseInt(itemId));
+                        return item ? { ...item, qty } : null;
+                    })
+                    .filter(item => item !== null)
+                    .sort((a, b) => a.id - b.id);
+
+                if (orderedItems.length === 0) return '暂无点餐';
+
+                const itemsList = orderedItems
+                    .map((item, index) => `${index + 1}. ${item.name} x${item.qty} (¥${item.price * item.qty})`)
+                    .join('\n');
+                
+                const total = orderedItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+                
+                return `${itemsList}\n\n总计：¥${total.toFixed(2)}`;
+            };
+
+            const submitAndCopyOrder = () => {
+                const orderedItems = Object.entries(orders)
+                    .map(([itemId, qty]) => {
+                        const item = menuItems.find(i => i.id === parseInt(itemId));
+                        return item ? { ...item, qty } : null;
+                    })
+                    .filter(item => item !== null);
+
+                if (orderedItems.length === 0) {
+                    alert('没有菜品可以提交');
+                    return;
+                }
+
+                // 生成订单编号（日期 + 序号）
+                const today = new Date().toISOString().split('T')[0];
+                const todayOrders = orderHistory.filter(order => order.date.startsWith(today));
+                const orderNumber = todayOrders.length + 1;
+                const orderId = `${today.replace(/-/g, '')}-${orderNumber.toString().padStart(3, '0')}`;
+
+                // 创建订单记录
+                const orderRecord = {
+                    id: orderId,
+                    date: new Date().toISOString(),
+                    items: orderedItems,
+                    total: orderedItems.reduce((sum, item) => sum + item.price * item.qty, 0),
+                    orderNumber: orderNumber
+                };
+
+                // 保存到历史记录
+                setOrderHistory(prev => [orderRecord, ...prev]);
+
+                // 生成订单文本
+                const itemsList = orderedItems
+                    .map((item, index) => `${index + 1}. ${item.name} x${item.qty} (¥${item.price * item.qty})`)
+                    .join('\n');
+                
+                const orderText = `订单号: ${orderId}\n${itemsList}\n\n总计：¥${orderRecord.total.toFixed(2)}`;
+
+                // 复制到剪贴板
+                copyToClipboard(orderText);
+
+                // 清空当前订单
+                setOrders({});
+
+                alert(`订单 ${orderId} 已提交并复制到剪贴板`);
+            };
+
+            const copyToClipboard = (text) => {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        setCopySuccess(true);
+                        setTimeout(() => setCopySuccess(false), 2000);
+                    }).catch(() => {
+                        fallbackCopyTextToClipboard(text);
+                    });
+                } else {
+                    fallbackCopyTextToClipboard(text);
+                }
+            };
+
+            const fallbackCopyTextToClipboard = (text) => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 2000);
+                } catch (err) {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制文本');
+                }
+                document.body.removeChild(textArea);
+            };
+
+            const clearOrders = () => {
+                if (confirm('确定要清空所有订单吗？')) {
+                    setOrders({});
+                }
+            };
+
+            // 获取总结数据
+            const getSummaryData = () => {
+                const today = selectedDate.toISOString().split('T')[0];
+                
+                if (viewMode === 'daily') {
+                    // 当日订单
+                    const dailyOrders = orderHistory.filter(order => order.date.startsWith(today));
+                    const totalAmount = dailyOrders.reduce((sum, order) => sum + order.total, 0);
+                    
+                    // 菜品统计
+                    const itemStats = {};
+                    dailyOrders.forEach(order => {
+                        order.items.forEach(item => {
+                            if (!itemStats[item.id]) {
+                                itemStats[item.id] = { ...item, totalQty: 0, totalAmount: 0 };
+                            }
+                            itemStats[item.id].totalQty += item.qty;
+                            itemStats[item.id].totalAmount += item.price * item.qty;
+                        });
+                    });
+
+                    return {
+                        orders: dailyOrders,
+                        totalOrders: dailyOrders.length,
+                        totalAmount: totalAmount,
+                        itemStats: Object.values(itemStats).sort((a, b) => b.totalQty - a.totalQty)
+                    };
+                } else if (viewMode === 'monthly') {
+                    // 月度统计
+                    const year = selectedDate.getFullYear();
+                    const month = selectedDate.getMonth() + 1;
+                    const monthPrefix = `${year}-${month.toString().padStart(2, '0')}`;
+                    
+                    const monthlyOrders = orderHistory.filter(order => order.date.startsWith(monthPrefix));
+                    const totalAmount = monthlyOrders.reduce((sum, order) => sum + order.total, 0);
+                    
+                    // 按日期分组
+                    const dailyStats = {};
+                    monthlyOrders.forEach(order => {
+                        const date = order.date.split('T')[0];
+                        if (!dailyStats[date]) {
+                            dailyStats[date] = { date, orders: 0, amount: 0 };
+                        }
+                        dailyStats[date].orders += 1;
+                        dailyStats[date].amount += order.total;
+                    });
+
+                    return {
+                        orders: monthlyOrders,
+                        totalOrders: monthlyOrders.length,
+                        totalAmount: totalAmount,
+                        dailyStats: Object.values(dailyStats).sort((a, b) => b.date.localeCompare(a.date))
+                    };
+                } else {
+                    // 菜品总统计
+                    const itemStats = {};
+                    orderHistory.forEach(order => {
+                        order.items.forEach(item => {
+                            if (!itemStats[item.id]) {
+                                itemStats[item.id] = { ...item, totalQty: 0, totalAmount: 0 };
+                            }
+                            itemStats[item.id].totalQty += item.qty;
+                            itemStats[item.id].totalAmount += item.price * item.qty;
+                        });
+                    });
+
+                    return {
+                        itemStats: Object.values(itemStats).sort((a, b) => b.totalQty - a.totalQty)
+                    };
+                }
+            };
+
+            const generateSummaryText = () => {
+                const data = getSummaryData();
+                const dateStr = selectedDate.toLocaleDateString('zh-CN');
+                
+                if (viewMode === 'daily') {
+                    return `📊 ${dateStr} 销售总结\n\n` +
+                           `订单数量: ${data.totalOrders} 单\n` +
+                           `总金额: ¥${data.totalAmount.toFixed(2)}\n\n` +
+                           `菜品销售排行:\n${data.itemStats.map((item, index) => 
+                               `${index + 1}. ${item.name} x${item.totalQty} (¥${item.totalAmount.toFixed(2)})`
+                           ).join('\n')}`;
+                } else if (viewMode === 'monthly') {
+                    const monthStr = selectedDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
+                    return `📊 ${monthStr} 销售总结\n\n` +
+                           `总订单: ${data.totalOrders} 单\n` +
+                           `总金额: ¥${data.totalAmount.toFixed(2)}\n\n` +
+                           `每日统计:\n${data.dailyStats.map(day => 
+                               `${day.date}: ${day.orders}单 ¥${day.amount.toFixed(2)}`
+                           ).join('\n')}`;
+                } else {
+                    return `📊 菜品总销售统计\n\n` +
+                           `统计时间: ${new Date().toLocaleDateString('zh-CN')}\n\n` +
+                           `菜品销售排行:\n${data.itemStats.map((item, index) => 
+                               `${index + 1}. ${item.name} x${item.totalQty} (¥${item.totalAmount.toFixed(2)})`
+                           ).join('\n')}`;
+                }
+            };
+
+            const copySummaryToClipboard = () => {
+                const text = generateSummaryText();
+                copyToClipboard(text);
+            };
+
+            // 日历组件
+            const CalendarView = () => {
+                const [currentMonth, setCurrentMonth] = useState(new Date());
+                
+                const getDaysInMonth = (date) => {
+                    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+                };
+
+                const getFirstDayOfMonth = (date) => {
+                    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+                };
+
+                const renderCalendar = () => {
+                    const daysInMonth = getDaysInMonth(currentMonth);
+                    const firstDay = getFirstDayOfMonth(currentMonth);
+                    const days = [];
+                    
+                    // 上个月的空格
+                    for (let i = 0; i < firstDay; i++) {
+                        days.push(<div key={`empty-${i}`} className="calendar-day"></div>);
+                    }
+                    
+                    // 本月日期
+                    for (let i = 1; i <= daysInMonth; i++) {
+                        const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
+                        const dateStr = date.toISOString().split('T')[0];
+                        const hasOrders = orderHistory.some(order => order.date.startsWith(dateStr));
+                        const isSelected = date.toDateString() === selectedDate.toDateString();
+                        
+                        days.push(
+                            <div 
+                                key={i}
+                                className={`calendar-day flex items-center justify-center cursor-pointer border rounded ${
+                                    isSelected ? 'selected bg-blue-500 text-white' : 
+                                    hasOrders ? 'bg-green-100' : 'bg-gray-50'
+                                } hover:bg-blue-200`}
+                                onClick={() => setSelectedDate(date)}
+                            >
+                                {i}
+                            </div>
+                        );
+                    }
+                    
+                    return days;
+                };
+
+                const changeMonth = (direction) => {
+                    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1));
+                };
+
+                return (
+                    <div className="bg-white rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded">
+                                ‹
+                            </button>
+                            <h3 className="font-semibold">
+                                {currentMonth.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })}
+                            </h3>
+                            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded">
+                                ›
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-sm text-center">
+                            {['日', '一', '二', '三', '四', '五', '六'].map(day => (
+                                <div key={day} className="font-medium text-gray-500">{day}</div>
+                            ))}
+                            {renderCalendar()}
+                        </div>
+                    </div>
+                );
+            };
+
+            const groupedMenu = menuItems.reduce((acc, item) => {
+                if (!acc[item.category]) acc[item.category] = [];
+                acc[item.category].push(item);
+                return acc;
+            }, {});
+
+            return (
+                <div className="flex flex-col h-screen bg-gray-50">
+                    {/* 上半部分：菜品选择 */}
+                    <div className="flex-1 overflow-y-auto bg-white">
+                        <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 shadow-md z-20">
+                            <div className="flex items-center justify-between">
+                                <h1 className="text-xl font-bold">点餐系统</h1>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setShowSummary(true)}
+                                        className="flex items-center gap-1 bg-white text-orange-500 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-orange-50 transition"
+                                    >
+                                        <BarChart3 />
+                                        总结
+                                    </button>
+                                    <button
+                                        onClick={() => setShowEditMode(!showEditMode)}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
+                                            showEditMode 
+                                                ? 'bg-red-500 text-white' 
+                                                : 'bg-white text-orange-500 hover:bg-orange-50'
+                                        }`}
+                                    >
+                                        <Edit3 />
+                                        {showEditMode ? '完成' : '删除菜品'}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAddForm(true)}
+                                        className="flex items-center gap-1 bg-white text-orange-500 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-orange-50 transition"
+                                    >
+                                        <PlusCircle />
+                                        添加菜品
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* 添加菜品表单 */}
+                        {showAddForm && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30 p-4">
+                                <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-bold text-gray-800">添加新菜品</h2>
+                                        <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">菜名</label>
+                                            <input
+                                                type="text"
+                                                value={newItem.name}
+                                                onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                placeholder="请输入菜名"
+                                            />
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">价格（元）</label>
+                                            <input
+                                                type="number"
+                                                value={newItem.price}
+                                                onChange={(e) => setNewItem({...newItem, price: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                placeholder="请输入价格"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">分类</label>
+                                            <select
+                                                value={newItem.category}
+                                                onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            >
+                                                <option value="热菜">热菜</option>
+                                                <option value="凉菜">凉菜</option>
+                                                <option value="汤品">汤品</option>
+                                                <option value="主食">主食</option>
+                                                <option value="酒水饮料">酒水饮料</option>
+                                                <option value="其他">其他</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="pt-2">
+                                            <button
+                                                onClick={() => {
+                                                    setShowAddForm(false);
+                                                    setShowBatchAddForm(true);
+                                                }}
+                                                className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                                            >
+                                                批量添加菜品
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="flex gap-3 mt-6">
+                                            <button
+                                                onClick={() => setShowAddForm(false)}
+                                                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition"
+                                            >
+                                                取消
+                                            </button>
+                                            <button
+                                                onClick={addNewMenuItem}
+                                                className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition"
+                                            >
+                                                确认添加
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 批量添加菜品表单 */}
+                        {showBatchAddForm && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30 p-4">
+                                <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-bold text-gray-800">批量添加菜品</h2>
+                                        <button onClick={() => setShowBatchAddForm(false)} className="text-gray-400 hover:text-gray-600">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                请输入菜品信息（每行一个菜品，格式：菜名 价格）
+                                            </label>
+                                            <textarea
+                                                value={batchText}
+                                                onChange={(e) => setBatchText(e.target.value)}
+                                                className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                                                placeholder={`例如：
+宫保鸡丁 38
+鱼香肉丝 32
+麻婆豆腐 28
+可乐 5
+啤酒 8`}
+                                            />
+                                        </div>
+                                        
+                                        <div className="flex gap-3 mt-6">
+                                            <button
+                                                onClick={() => setShowBatchAddForm(false)}
+                                                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition"
+                                            >
+                                                取消
+                                            </button>
+                                            <button
+                                                onClick={batchAddMenuItems}
+                                                className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition"
+                                            >
+                                                批量添加
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* 总结页面 */}
+                        {showSummary && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30 p-4">
+                                <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-xl font-bold text-gray-800">销售总结</h2>
+                                        <button onClick={() => setShowSummary(false)} className="text-gray-400 hover:text-gray-600">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+
+                                    {/* 日历和视图切换 */}
+                                    <div className="mb-6">
+                                        <CalendarView />
+                                        
+                                        <div className="flex gap-2 mb-4">
+                                            <button
+                                                onClick={() => setViewMode('daily')}
+                                                className={`px-4 py-2 rounded-lg font-medium transition ${
+                                                    viewMode === 'daily' 
+                                                        ? 'bg-blue-500 text-white' 
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                }`}
+                                            >
+                                                日统计
+                                            </button>
+                                            <button
+                                                onClick={() => setViewMode('monthly')}
+                                                className={`px-4 py-2 rounded-lg font-medium transition ${
+                                                    viewMode === 'monthly' 
+                                                        ? 'bg-blue-500 text-white' 
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                }`}
+                                            >
+                                                月统计
+                                            </button>
+                                            <button
+                                                onClick={() => setViewMode('items')}
+                                                className={`px-4 py-2 rounded-lg font-medium transition ${
+                                                    viewMode === 'items' 
+                                                        ? 'bg-blue-500 text-white' 
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                }`}
+                                            >
+                                                菜品统计
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 总结内容 */}
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="font-semibold text-gray-700">
+                                                {viewMode === 'daily' && `${selectedDate.toLocaleDateString('zh-CN')} 销售总结`}
+                                                {viewMode === 'monthly' && `${selectedDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })} 销售总结`}
+                                                {viewMode === 'items' && '菜品销售总统计'}
+                                            </h3>
+                                            <button
+                                                onClick={copySummaryToClipboard}
+                                                className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1 transition"
+                                            >
+                                                <Copy size={14} />
+                                                复制总结
+                                            </button>
+                                        </div>
+                                        
+                                        <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                                            {generateSummaryText()}
+                                        </pre>
+                                    </div>
+
+                                    {/* 历史订单列表 */}
+                                    {viewMode === 'daily' && (
+                                        <div className="mt-6">
+                                            <h4 className="font-semibold text-gray-700 mb-3">当日订单详情</h4>
+                                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                {getSummaryData().orders.map(order => (
+                                                    <div key={order.id} className="bg-white border rounded-lg p-3">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <span className="font-medium">订单号: {order.id}</span>
+                                                            <span className="text-orange-600 font-semibold">¥{order.total.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="text-sm text-gray-600">
+                                                            {order.items.map(item => 
+                                                                `${item.name} x${item.qty}`
+                                                            ).join(', ')}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div className="p-4 space-y-6">
+                            {Object.entries(groupedMenu).map(([category, items]) => (
+                                <div key={category}>
+                                    <h2 className="text-lg font-semibold text-gray-700 mb-3 pb-2 border-b-2 border-orange-400">
+                                        {category}
+                                    </h2>
+                                    <div className="space-y-2">
+                                        {items.map(item => (
+                                            <div key={item.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                                <div className="flex-1">
+                                                    <span className="text-gray-800 font-medium">{item.name}</span>
+                                                    <span className="text-orange-600 font-semibold ml-2">¥{item.price}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {showEditMode ? (
+                                                        <button
+                                                            onClick={() => deleteMenuItem(item.id)}
+                                                            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                                                        >
+                                                            删除
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            {orders[item.id] > 0 && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => updateQuantity(item.id, -1)}
+                                                                        className="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-full transition"
+                                                                    >
+                                                                        <Minus />
+                                                                    </button>
+                                                                    <span className="w-8 text-center font-semibold text-orange-600">
+                                                                        {orders[item.id]}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                            <button
+                                                                onClick={() => updateQuantity(item.id, 1)}
+                                                                className="w-8 h-8 flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white rounded-full transition"
+                                                            >
+                                                                <Plus />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 下半部分：订单文本 */}
+                    <div className="h-64 bg-white border-t-4 border-orange-500 shadow-lg">
+                        <div className="h-full flex flex-col">
+                            <div className="flex items-center justify-between p-3 bg-gray-100 border-b">
+                                <h3 className="font-semibold text-gray-700">订单详情</h3>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={clearOrders}
+                                        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm flex items-center gap-1 transition"
+                                    >
+                                        <Trash2 />
+                                        清空
+                                    </button>
+                                    <button
+                                        onClick={submitAndCopyOrder}
+                                        className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm flex items-center gap-1 transition"
+                                    >
+                                        <Copy />
+                                        提交并复制
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-4">
+                                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                                    {generateOrderText()}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // 渲染应用到页面
+        ReactDOM.render(<MenuOrderApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
